@@ -1,0 +1,20 @@
+{
+  "name": "modbus-tcp-simulator",
+  "version": "1.0.0",
+  "description": "Configurable Modbus TCP simulator for testing Modbus masters such as Node-RED.",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron ."
+  },
+  "keywords": [
+    "modbus",
+    "modbus-tcp",
+    "simulator",
+    "nodered"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.2.0"
+  }
+}

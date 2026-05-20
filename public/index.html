@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modbus TCP Simulator</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Modbus TCP Simulator</h1>
+          <p id="summary">Loading</p>
+        </div>
+        <div class="actions">
+          <button id="add-endpoint" type="button">+ Gateway</button>
+          <button id="save" type="button" class="primary">Apply</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar">
+          <div class="section-title">Gateways</div>
+          <div id="endpoint-list" class="list"></div>
+        </aside>
+
+        <section class="editor">
+          <div id="gateway-panel"></div>
+          <div id="device-panel"></div>
+          <div id="log-panel"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="empty-template">
+      <div class="empty">
+        <h2>No gateway selected</h2>
+      </div>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

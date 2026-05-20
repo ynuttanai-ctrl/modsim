@@ -1,0 +1,82 @@
+{
+  "endpoints": [
+    {
+      "id": "endpoint-mpdkb9fb-b8zwks",
+      "name": "Gateway A",
+      "host": "0.0.0.0",
+      "port": 1502,
+      "enabled": true,
+      "devices": [
+        {
+          "id": "device-mpdkb9fb-78l09k",
+          "name": "Current Meter 1",
+          "unitId": 1,
+          "enabled": true,
+          "sensors": [
+            {
+              "id": "sensor-mpdkb9fb-frf3f7",
+              "name": "Current L1",
+              "table": "holding",
+              "address": 0,
+              "scale": 100,
+              "value": 12.34,
+              "unit": "A"
+            },
+            {
+              "id": "sensor-mpdkb9fb-8b3nwd",
+              "name": "Current L2",
+              "table": "holding",
+              "address": 1,
+              "scale": 100,
+              "value": 11.98,
+              "unit": "A"
+            },
+            {
+              "id": "sensor-mpdkb9fb-9yptk3",
+              "name": "Current L3",
+              "table": "holding",
+              "address": 2,
+              "scale": 100,
+              "value": 12.12,
+              "unit": "A"
+            }
+          ],
+          "points": [
+            {
+              "id": "point-mpdkb9fb-c56p2x",
+              "name": "Run Command",
+              "table": "coils",
+              "address": 0,
+              "value": false
+            },
+            {
+              "id": "point-mpdkb9fb-w05wxv",
+              "name": "Healthy",
+              "table": "discrete",
+              "address": 0,
+              "value": true
+            }
+          ]
+        },
+        {
+          "id": "device-mpdkb9fb-azagej",
+          "name": "Current Meter 2",
+          "unitId": 2,
+          "enabled": true,
+          "sensors": [
+            {
+              "id": "sensor-mpdkb9fb-4cwpap",
+              "name": "Current",
+              "table": "input",
+              "address": 0,
+              "scale": 100,
+              "value": 7.5,
+              "unit": "A"
+            }
+          ],
+          "points": []
+        }
+      ]
+    }
+  ]
+}

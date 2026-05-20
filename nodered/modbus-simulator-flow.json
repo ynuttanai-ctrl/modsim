@@ -1,0 +1,225 @@
+[
+  {
+    "id": "a2bfb7e7c7a00101",
+    "type": "tab",
+    "label": "Modbus TCP Simulator Test",
+    "disabled": false,
+    "info": "Import this flow after installing node-red-contrib-modbus. It reads the local Modbus TCP simulator at 127.0.0.1:1502."
+  },
+  {
+    "id": "06d2fe83f8f7c1e0",
+    "type": "comment",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Requires node-red-contrib-modbus. Simulator: 127.0.0.1:1502",
+    "info": "Run the simulator first, then deploy this flow. Default reads:\n- Unit ID 1, FC3 holding registers, address 0, quantity 3\n- Unit ID 2, FC4 input registers, address 0, quantity 1\n\nSimulator scale is 100, so raw 1234 means 12.34 A.",
+    "x": 300,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "3e4d976cbd82cfd7",
+    "type": "modbus-read",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 1 Current L1-L3",
+    "topic": "unit1/current",
+    "showStatusActivities": true,
+    "logIOActivities": false,
+    "showErrors": true,
+    "showWarnings": true,
+    "unitid": "1",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "4b7e51628c23fbd1",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 180,
+    "y": 120,
+    "wires": [
+      [
+        "6f423f649790e7e6"
+      ],
+      [
+        "ce5f2f8d4bfb09e2"
+      ]
+    ]
+  },
+  {
+    "id": "6f423f649790e7e6",
+    "type": "function",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Scale Unit 1 A",
+    "func": "const raw = Array.isArray(msg.payload)\n    ? msg.payload\n    : Array.isArray(msg.payload?.data)\n        ? msg.payload.data\n        : [];\n\nconst scale = 100;\nmsg.payload = {\n    unitId: 1,\n    table: \"holding\",\n    address: 0,\n    raw,\n    current: {\n        L1: raw[0] / scale,\n        L2: raw[1] / scale,\n        L3: raw[2] / scale\n    },\n    unit: \"A\",\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 430,
+    "y": 120,
+    "wires": [
+      [
+        "76e0d5bec24d7d1a"
+      ]
+    ]
+  },
+  {
+    "id": "76e0d5bec24d7d1a",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 1 scaled current",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 700,
+    "y": 120,
+    "wires": []
+  },
+  {
+    "id": "ce5f2f8d4bfb09e2",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 1 raw response",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 440,
+    "y": 180,
+    "wires": []
+  },
+  {
+    "id": "ed54535a6e9f1ab8",
+    "type": "modbus-read",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 2 Current",
+    "topic": "unit2/current",
+    "showStatusActivities": true,
+    "logIOActivities": false,
+    "showErrors": true,
+    "showWarnings": true,
+    "unitid": "2",
+    "dataType": "InputRegister",
+    "adr": "0",
+    "quantity": "1",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "4b7e51628c23fbd1",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 160,
+    "y": 260,
+    "wires": [
+      [
+        "8d64792c8df957ec"
+      ],
+      [
+        "4e38c907bf840b40"
+      ]
+    ]
+  },
+  {
+    "id": "8d64792c8df957ec",
+    "type": "function",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Scale Unit 2 A",
+    "func": "const raw = Array.isArray(msg.payload)\n    ? msg.payload\n    : Array.isArray(msg.payload?.data)\n        ? msg.payload.data\n        : [];\n\nconst scale = 100;\nmsg.payload = {\n    unitId: 2,\n    table: \"input\",\n    address: 0,\n    raw,\n    current: raw[0] / scale,\n    unit: \"A\",\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 260,
+    "wires": [
+      [
+        "ec13fb305528df70"
+      ]
+    ]
+  },
+  {
+    "id": "ec13fb305528df70",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 2 scaled current",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 690,
+    "y": 260,
+    "wires": []
+  },
+  {
+    "id": "4e38c907bf840b40",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 2 raw response",
+    "active": false,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 430,
+    "y": 320,
+    "wires": []
+  },
+  {
+    "id": "4b7e51628c23fbd1",
+    "type": "modbus-client",
+    "name": "Simulator 127.0.0.1:1502",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "1502",
+    "tcpType": "DEFAULT",
+    "serialPort": "/dev/ttyUSB",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "1000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": true
+  }
+]
