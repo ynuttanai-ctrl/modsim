@@ -56,6 +56,38 @@
               "address": 0,
               "value": true
             }
+          ],
+          "analogChannels": [
+            {
+              "id": "analog-mpic2p9b-uh6w4r",
+              "name": "CH1",
+              "address": 0,
+              "mode": 3,
+              "loReal": 0,
+              "hiReal": 100,
+              "unit": "",
+              "value": 141
+            },
+            {
+              "id": "analog-mpic2ulb-32xavp",
+              "name": "CH2",
+              "address": 1,
+              "mode": 3,
+              "loReal": 0,
+              "hiReal": 100,
+              "unit": "",
+              "value": 4
+            },
+            {
+              "id": "analog-mpic30gn-yfwxpn",
+              "name": "CH3",
+              "address": 2,
+              "mode": 3,
+              "loReal": 0,
+              "hiReal": 100,
+              "unit": "",
+              "value": 4
+            }
           ]
         },
         {
@@ -74,7 +106,8 @@
               "unit": "A"
             }
           ],
-          "points": []
+          "points": [],
+          "analogChannels": []
         }
       ]
     }
