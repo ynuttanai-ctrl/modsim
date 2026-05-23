@@ -151,13 +151,15 @@ function sanitizeEndpoint(endpoint) {
 function sanitizeDevice(device) {
   const sensors = Array.isArray(device?.sensors) ? device.sensors : [];
   const points = Array.isArray(device?.points) ? device.points : [];
+  const analogChannels = Array.isArray(device?.analogChannels) ? device.analogChannels : [];
   return {
     id: cleanText(device?.id, uid("device"), 80),
     name: cleanText(device?.name, "Slave Device", 80),
     unitId: clampInt(device?.unitId, 1, 0, 255),
     enabled: Boolean(device?.enabled),
     sensors: sensors.map(sanitizeSensor),
-    points: points.map(sanitizePoint)
+    points: points.map(sanitizePoint),
+    analogChannels: analogChannels.map(sanitizeAnalogChannel)
   };
 }
 
@@ -185,6 +187,19 @@ function sanitizePoint(point) {
     table,
     address: clampInt(point?.address, 0, 0, 65535),
     value
+  };
+}
+
+function sanitizeAnalogChannel(ch) {
+  return {
+    id: cleanText(ch?.id, uid("analog"), 80),
+    name: cleanText(ch?.name, "Analog CH", 80),
+    address: clampInt(ch?.address, 0, 0, 7),
+    mode: clampInt(ch?.mode, 3, 0, 4),
+    loReal: finiteNumber(ch?.loReal, 0),
+    hiReal: finiteNumber(ch?.hiReal, 100),
+    unit: cleanText(ch?.unit, "", 20),
+    value: finiteNumber(ch?.value, 0)
   };
 }
 
@@ -780,5 +795,6 @@ if (require.main === module) {
 
 module.exports = {
   startApp,
-  stopApp
+  stopApp,
+  _sanitizeAnalogChannel: sanitizeAnalogChannel
 };
