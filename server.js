@@ -465,7 +465,8 @@ function handleWriteSingleRegister(transactionId, unitId, functionCode, device, 
 
   const address = pdu.readUInt16BE(1);
   const value = pdu.readUInt16BE(3);
-  writeRegister(device, address, value);
+  const exception = writeRegister(device, address, value);
+  if (exception) return buildException(transactionId, unitId, functionCode, exception);
   saveConfigSoon();
   return buildResponse(transactionId, unitId, pdu.slice(0, 5));
 }
@@ -481,7 +482,8 @@ function handleWriteMultipleRegisters(transactionId, unitId, functionCode, devic
   }
 
   for (let index = 0; index < quantity; index += 1) {
-    writeRegister(device, address + index, pdu.readUInt16BE(6 + index * 2));
+    const exception = writeRegister(device, address + index, pdu.readUInt16BE(6 + index * 2));
+    if (exception) return buildException(transactionId, unitId, functionCode, exception);
   }
 
   saveConfigSoon();
@@ -553,6 +555,16 @@ function readRegister(device, table, address) {
 }
 
 function writeRegister(device, address, rawValue) {
+  if (address >= 0x1000 && address <= 0x1007) {
+    const channelAddress = address - 0x1000;
+    const channel = device.analogChannels?.find((ch) => ch.address === channelAddress);
+    if (channel) {
+      if (rawValue < 0 || rawValue > 4) return 0x03;
+      channel.mode = rawValue;
+    }
+    return;
+  }
+
   const sensor = device.sensors.find((entry) => entry.table === "holding" && entry.address === address);
   if (sensor) {
     const scale = sensor.scale || 1;
@@ -824,5 +836,6 @@ module.exports = {
   stopApp,
   _sanitizeAnalogChannel: sanitizeAnalogChannel,
   _computeAnalogRegister: computeAnalogRegister,
-  _readRegister: readRegister
+  _readRegister: readRegister,
+  _writeRegister: writeRegister
 };

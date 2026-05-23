@@ -151,3 +151,43 @@ test("readRegister: device with no analogChannels field returns 0 for analog add
   const result = server._readRegister(device, "input", 0);
   assert.strictEqual(result, 0);
 });
+
+test("writeRegister: write to 0x1000 updates channel mode", () => {
+  const device = {
+    sensors: [],
+    points: [],
+    analogChannels: [{ address: 0, mode: 3, loReal: 0, hiReal: 100, value: 50 }]
+  };
+  const result = server._writeRegister(device, 0x1000, 2);
+  assert.strictEqual(result, undefined);
+  assert.strictEqual(device.analogChannels[0].mode, 2);
+});
+
+test("writeRegister: write mode 5 to 0x1000 returns exception code 0x03", () => {
+  const device = {
+    sensors: [],
+    points: [],
+    analogChannels: [{ address: 0, mode: 3, loReal: 0, hiReal: 100, value: 50 }]
+  };
+  const result = server._writeRegister(device, 0x1000, 5);
+  assert.strictEqual(result, 0x03);
+  assert.strictEqual(device.analogChannels[0].mode, 3); // unchanged
+});
+
+test("writeRegister: write to 0x1001 with no matching channel is a no-op", () => {
+  const device = {
+    sensors: [],
+    points: [],
+    analogChannels: [{ address: 0, mode: 3, loReal: 0, hiReal: 100, value: 50 }]
+  };
+  const result = server._writeRegister(device, 0x1001, 2);
+  assert.strictEqual(result, undefined);
+  assert.strictEqual(device.analogChannels[0].mode, 3); // unchanged
+});
+
+test("writeRegister: write to normal holding register still works", () => {
+  const device = { sensors: [], points: [], analogChannels: [] };
+  const result = server._writeRegister(device, 0, 999);
+  assert.strictEqual(result, undefined);
+  assert.strictEqual(device.points[0].value, 999);
+});
