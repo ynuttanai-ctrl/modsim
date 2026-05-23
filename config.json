@@ -19,7 +19,7 @@
               "table": "holding",
               "address": 0,
               "scale": 100,
-              "value": 12.34,
+              "value": 41.58,
               "unit": "A"
             },
             {
@@ -108,6 +108,36 @@
           ],
           "points": [],
           "analogChannels": []
+        },
+        {
+          "id": "device-waveshare-8ch-001",
+          "name": "Waveshare AI-8CH",
+          "unitId": 3,
+          "enabled": true,
+          "sensors": [],
+          "points": [],
+          "analogChannels": [
+            {
+              "id": "analog-waveshare-ch0",
+              "name": "Pressure",
+              "address": 0,
+              "mode": 3,
+              "loReal": 0,
+              "hiReal": 100,
+              "unit": "bar",
+              "value": 50
+            },
+            {
+              "id": "analog-waveshare-ch1",
+              "name": "Temperature",
+              "address": 1,
+              "mode": 3,
+              "loReal": -20,
+              "hiReal": 80,
+              "unit": "C",
+              "value": 25
+            }
+          ]
         }
       ]
     }

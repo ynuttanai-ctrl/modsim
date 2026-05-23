@@ -11,7 +11,7 @@
     "type": "comment",
     "z": "a2bfb7e7c7a00101",
     "name": "Requires node-red-contrib-modbus. Simulator: 127.0.0.1:1502",
-    "info": "Run the simulator first, then deploy this flow. Default reads:\n- Unit ID 1, FC3 holding registers, address 0, quantity 3\n- Unit ID 2, FC4 input registers, address 0, quantity 1\n\nSimulator scale is 100, so raw 1234 means 12.34 A.",
+    "info": "Run the simulator first, then deploy this flow.\n\nUnit 1 — FC3 holding registers, address 0, quantity 3 (Current L1-L3, scale 100 → A)\nUnit 2 — FC4 input registers, address 0, quantity 1 (Current, scale 100 → A)\nUnit 3 — FC4 input 0x0000–0x0007 (Analog data, μA/mV) + FC3/FC6 holding 0x1000–0x1007 (Mode config)\n\nFor Unit 3: add a Slave device with Unit ID 3 in the simulator UI, then open the Analog tab and add channels.",
     "x": 300,
     "y": 40,
     "wires": []
@@ -190,6 +190,221 @@
     "statusType": "auto",
     "x": 430,
     "y": 320,
+    "wires": []
+  },
+  {
+    "id": "f1b3c4d5e6f7a801",
+    "type": "comment",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Analog 4-20mA — Unit 3 (add Slave Unit ID 3 + Analog Channels in simulator first)",
+    "info": "Prerequisite: In the simulator UI, add a Slave device with Unit ID 3 on Gateway A,\nthen open the Analog tab and add channels.\n\nRegister map (matches Waveshare Modbus RTU Analog Input 8CH protocol):\n  FC04 input  0x0000–0x0007 : channel 0–7 data (μA for current, mV for voltage)\n  FC03 holding 0x1000–0x1007 : channel 0–7 mode (read)\n  FC06 holding 0x1000–0x1007 : channel 0–7 mode (write)\n\nMode values: 0=0~5V  1=1~5V  2=0~20mA  3=4~20mA  4=Raw ADC",
+    "x": 370,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "f1b3c4d5e6f7a802",
+    "type": "modbus-read",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 3 Analog Data (FC4 input 0–7)",
+    "topic": "unit3/analog",
+    "showStatusActivities": true,
+    "logIOActivities": false,
+    "showErrors": true,
+    "showWarnings": true,
+    "unitid": "3",
+    "dataType": "InputRegister",
+    "adr": "0",
+    "quantity": "8",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "4b7e51628c23fbd1",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 210,
+    "y": 460,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a803"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a803",
+    "type": "function",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Decode μA → engineering value",
+    "func": "var raw = Array.isArray(msg.payload) ? msg.payload\n    : (Array.isArray(msg.payload && msg.payload.data) ? msg.payload.data : []);\n\n// Edit these to match your simulator's Analog Channel configuration\nvar channels = [\n    { name: 'CH1', mode: 3, loReal: 0,   hiReal: 100, unit: 'bar' },\n    { name: 'CH2', mode: 3, loReal: -20, hiReal: 80,  unit: 'C'   }\n];\n\nvar decoded = [];\nfor (var i = 0; i < channels.length && i < raw.length; i++) {\n    var ch = channels[i];\n    var reg = raw[i];\n    var span = ch.hiReal - ch.loReal;\n    var value;\n    if      (ch.mode === 3) { value = (reg - 4000)  / 16000 * span + ch.loReal; }\n    else if (ch.mode === 2) { value =  reg           / 20000 * span + ch.loReal; }\n    else if (ch.mode === 0) { value =  reg           / 5000  * span + ch.loReal; }\n    else if (ch.mode === 1) { value = (reg - 1000)   / 4000  * span + ch.loReal; }\n    else                    { value =  reg; }\n    decoded.push({ name: ch.name, raw: reg, value: Math.round(value * 100) / 100, unit: ch.unit });\n}\n\nmsg.payload = { unitId: 3, analogChannels: decoded, timestamp: new Date().toISOString() };\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 490,
+    "y": 460,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a804"
+      ]
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a804",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Analog decoded values",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 750,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "f1b3c4d5e6f7a805",
+    "type": "modbus-read",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Unit 3 Mode Config (FC3 holding 0x1000–0x1007)",
+    "topic": "unit3/modes",
+    "showStatusActivities": true,
+    "logIOActivities": false,
+    "showErrors": true,
+    "showWarnings": true,
+    "unitid": "3",
+    "dataType": "HoldingRegister",
+    "adr": "4096",
+    "quantity": "8",
+    "rate": "5",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "4b7e51628c23fbd1",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 230,
+    "y": 560,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a806"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a806",
+    "type": "function",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Decode Mode Labels",
+    "func": "var raw = Array.isArray(msg.payload) ? msg.payload\n    : (Array.isArray(msg.payload && msg.payload.data) ? msg.payload.data : []);\n\nvar MODE_LABELS = ['0~5V', '1~5V', '0~20mA', '4~20mA', 'Raw ADC'];\nvar modes = [];\nfor (var i = 0; i < raw.length; i++) {\n    var m = raw[i];\n    var hexAddr = '0x' + (0x1000 + i).toString(16).toUpperCase();\n    modes.push({ channel: i, holdingAddr: hexAddr, mode: m, label: MODE_LABELS[m] || 'unknown' });\n}\nmsg.payload = { unitId: 3, channelModes: modes, timestamp: new Date().toISOString() };\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 500,
+    "y": 560,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a807"
+      ]
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a807",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Channel modes",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 720,
+    "y": 560,
+    "wires": []
+  },
+  {
+    "id": "f1b3c4d5e6f7a808",
+    "type": "inject",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Set CH1 mode → 4~20mA (3)",
+    "props": [
+      { "p": "payload" },
+      { "p": "topic", "vt": "str" }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "3",
+    "payloadType": "num",
+    "x": 200,
+    "y": 660,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a809"
+      ]
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a809",
+    "type": "modbus-write",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Write CH1 mode (FC6 holding 0x1000)",
+    "showStatusActivities": false,
+    "showErrors": true,
+    "showWarnings": true,
+    "unitid": "3",
+    "dataType": "HoldReg",
+    "adr": "4096",
+    "quantity": "1",
+    "server": "4b7e51628c23fbd1",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "x": 470,
+    "y": 660,
+    "wires": [
+      [
+        "f1b3c4d5e6f7a810"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "f1b3c4d5e6f7a810",
+    "type": "debug",
+    "z": "a2bfb7e7c7a00101",
+    "name": "Write mode result",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "full",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 730,
+    "y": 660,
     "wires": []
   },
   {

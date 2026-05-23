@@ -6,7 +6,28 @@
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
-    "test": "node --test test/analog.test.js"
+    "test": "node --test test/analog.test.js",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.modsim.app",
+    "productName": "Modbus TCP Simulator",
+    "files": [
+      "server.js",
+      "electron-main.js",
+      "public/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   },
   "keywords": [
     "modbus",
@@ -16,6 +37,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "electron": "^42.2.0"
+    "electron": "^42.2.0",
+    "electron-builder": "^26.8.1"
   }
 }
