@@ -235,9 +235,10 @@ function renderDeviceDetails(device) {
     <div class="tabs">
       <button type="button" class="tab ${state.tab === "sensors" ? "active" : ""}" data-action="tab" data-tab="sensors">Sensors</button>
       <button type="button" class="tab ${state.tab === "points" ? "active" : ""}" data-action="tab" data-tab="points">Raw Points</button>
+      <button type="button" class="tab ${state.tab === "analog" ? "active" : ""}" data-action="tab" data-tab="analog">Analog</button>
     </div>
 
-    ${state.tab === "points" ? renderPoints(device) : renderSensors(device)}
+    ${state.tab === "points" ? renderPoints(device) : state.tab === "analog" ? renderAnalogChannels(device) : renderSensors(device)}
   `;
 }
 
@@ -313,7 +314,74 @@ function renderPoints(device) {
   `;
 }
 
+function renderAnalogChannels(device) {
+  const channels = device.analogChannels || [];
+  const rows = channels.map((ch) => `
+    <tr data-analog-id="${escapeHtml(ch.id)}">
+      <td><input data-field="analog.name" value="${escapeHtml(ch.name)}"></td>
+      <td><input type="number" min="0" max="7" data-field="analog.address" value="${ch.address}"></td>
+      <td>
+        <select data-field="analog.mode">
+          ${MODE_LABELS.map((label, i) => `<option value="${i}" ${ch.mode === i ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </td>
+      <td><input type="number" step="any" data-field="analog.loReal" value="${ch.loReal}"></td>
+      <td><input type="number" step="any" data-field="analog.hiReal" value="${ch.hiReal}"></td>
+      <td><input type="number" step="any" data-field="analog.value" value="${ch.value}"></td>
+      <td><input data-field="analog.unit" value="${escapeHtml(ch.unit)}"></td>
+      <td class="muted">${computeAnalogDisplay(ch)}</td>
+      <td><button class="icon danger" title="Delete" type="button" data-action="remove-analog" data-id="${escapeHtml(ch.id)}">x</button></td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="panel-header inline">
+      <h3>Analog Channels</h3>
+      <button type="button" data-action="add-analog">+ Analog Channel</button>
+    </div>
+    <p class="muted">Input data: FC04 input 0x0000–0x0007 &nbsp;|&nbsp; Mode config: FC03/06 holding 0x1000–0x1007</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Mode</th>
+            <th>Lo Value</th>
+            <th>Hi Value</th>
+            <th>Value</th>
+            <th>Unit</th>
+            <th>Computed</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows || `<tr><td colspan="9" class="muted">No analog channels</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 const BOOL_TABLES = new Set(["coils", "discrete"]);
+
+const MODE_LABELS = ["0~5V", "1~5V", "0~20mA", "4~20mA", "Raw ADC"];
+const MODE_UNITS = ["mV", "mV", "μA", "μA", ""];
+
+function computeAnalogDisplay(channel) {
+  const { mode, loReal, hiReal, value } = channel;
+  const span = hiReal - loReal;
+  const ratio = span === 0 ? 0 : (value - loReal) / span;
+  let raw;
+  switch (mode) {
+    case 3: raw = Math.min(20000, Math.max(4000, Math.round(4000 + ratio * 16000))); break;
+    case 2: raw = Math.min(20000, Math.max(0, Math.round(ratio * 20000))); break;
+    case 0: raw = Math.min(5000, Math.max(0, Math.round(ratio * 5000))); break;
+    case 1: raw = Math.min(5000, Math.max(1000, Math.round(1000 + ratio * 4000))); break;
+    case 4: raw = Math.min(4096, Math.max(0, Math.round(ratio * 4096))); break;
+    default: raw = 0;
+  }
+  const unit = MODE_UNITS[mode] ?? "";
+  return unit ? `${raw} ${unit}` : String(raw);
+}
 
 function tableSelect(field, value, options) {
   return `
@@ -372,6 +440,12 @@ function currentFieldTarget(element) {
     return point ? { object: point, property: field.split(".")[1] } : null;
   }
 
+  const analogRow = element.closest("[data-analog-id]");
+  if (field.startsWith("analog.") && analogRow && device) {
+    const channel = (device.analogChannels || []).find((entry) => entry.id === analogRow.dataset.analogId);
+    return channel ? { object: channel, property: field.split(".")[1] } : null;
+  }
+
   return null;
 }
 
@@ -382,9 +456,9 @@ function setField(element) {
   const { object, property } = target;
   if (element.type === "checkbox") {
     object[property] = element.checked;
-  } else if (["port", "unitId", "address"].includes(property)) {
+  } else if (["port", "unitId", "address", "mode"].includes(property)) {
     object[property] = Number.parseInt(element.value, 10) || 0;
-  } else if (["value", "scale"].includes(property) && element.tagName !== "SELECT") {
+  } else if (["value", "scale", "loReal", "hiReal"].includes(property) && element.tagName !== "SELECT") {
     object[property] = Number(element.value) || 0;
   } else if (property === "value" && element.tagName === "SELECT") {
     object[property] = element.value === "true";
