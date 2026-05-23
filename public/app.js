@@ -550,6 +550,32 @@ document.addEventListener("click", async (event) => {
     render();
   }
 
+  if (action === "add-analog" && device) {
+    if (!device.analogChannels) device.analogChannels = [];
+    const usedAddresses = new Set(device.analogChannels.map((ch) => ch.address));
+    let address = 0;
+    while (usedAddresses.has(address) && address < 7) address += 1;
+    device.analogChannels.push({
+      id: uid("analog"),
+      name: `CH${address + 1}`,
+      address,
+      mode: 3,
+      loReal: 0,
+      hiReal: 100,
+      unit: "",
+      value: 4
+    });
+    state.tab = "analog";
+    markDirty();
+    render();
+  }
+
+  if (action === "remove-analog" && device) {
+    device.analogChannels = (device.analogChannels || []).filter((entry) => entry.id !== button.dataset.id);
+    markDirty();
+    render();
+  }
+
   if (action === "add-point" && device) {
     device.points.push({
       id: uid("point"),
