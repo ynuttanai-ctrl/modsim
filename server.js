@@ -203,6 +203,21 @@ function sanitizeAnalogChannel(ch) {
   };
 }
 
+function computeAnalogRegister(channel) {
+  const { mode, loReal, hiReal, value } = channel;
+  const span = hiReal - loReal;
+  const ratio = span === 0 ? 0 : (value - loReal) / span;
+
+  switch (mode) {
+    case 3: return Math.min(20000, Math.max(4000, Math.round(4000 + ratio * 16000)));
+    case 2: return Math.min(20000, Math.max(0, Math.round(ratio * 20000)));
+    case 0: return Math.min(5000, Math.max(0, Math.round(ratio * 5000)));
+    case 1: return Math.min(5000, Math.max(1000, Math.round(1000 + ratio * 4000)));
+    case 4: return Math.min(4096, Math.max(0, Math.round(ratio * 4096)));
+    default: return 0;
+  }
+}
+
 function cleanText(value, fallback, maxLength) {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
@@ -796,5 +811,6 @@ if (require.main === module) {
 module.exports = {
   startApp,
   stopApp,
-  _sanitizeAnalogChannel: sanitizeAnalogChannel
+  _sanitizeAnalogChannel: sanitizeAnalogChannel,
+  _computeAnalogRegister: computeAnalogRegister
 };
