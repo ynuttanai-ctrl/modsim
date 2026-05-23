@@ -535,6 +535,17 @@ function readRegister(device, table, address) {
   const sensor = device.sensors.find((entry) => entry.table === table && entry.address === address);
   if (sensor) return toUInt16(Math.round(sensor.value * sensor.scale));
 
+  if (table === "input") {
+    const channel = device.analogChannels?.find((ch) => ch.address === address);
+    if (channel) return computeAnalogRegister(channel);
+  }
+
+  if (table === "holding" && address >= 0x1000 && address <= 0x1007) {
+    const channelAddress = address - 0x1000;
+    const channel = device.analogChannels?.find((ch) => ch.address === channelAddress);
+    return channel ? channel.mode : 0;
+  }
+
   const point = device.points.find((entry) => entry.table === table && entry.address === address);
   if (point) return toUInt16(point.value);
 
@@ -812,5 +823,6 @@ module.exports = {
   startApp,
   stopApp,
   _sanitizeAnalogChannel: sanitizeAnalogChannel,
-  _computeAnalogRegister: computeAnalogRegister
+  _computeAnalogRegister: computeAnalogRegister,
+  _readRegister: readRegister
 };

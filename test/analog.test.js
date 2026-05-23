@@ -93,3 +93,61 @@ test("computeAnalogRegister: loReal === hiReal (division by zero) → lo clamp",
   const result = server._computeAnalogRegister({ mode: 3, loReal: 50, hiReal: 50, value: 50 });
   assert.strictEqual(result, 4000);
 });
+
+// Helper: minimal device with one analog channel
+function makeDevice(channelOverrides = {}) {
+  return {
+    sensors: [],
+    points: [],
+    analogChannels: [
+      Object.assign({ address: 0, mode: 3, loReal: 0, hiReal: 100, value: 50 }, channelOverrides)
+    ]
+  };
+}
+
+test("readRegister: FC04 input at address 0 returns computed analog value", () => {
+  const device = makeDevice();
+  const result = server._readRegister(device, "input", 0);
+  assert.strictEqual(result, 12000); // mode 3, 50% → 12000 μA
+});
+
+test("readRegister: FC04 input at address not matching channel returns 0", () => {
+  const device = makeDevice(); // channel at address 0
+  const result = server._readRegister(device, "input", 1);
+  assert.strictEqual(result, 0);
+});
+
+test("readRegister: sensor takes priority over analog channel at same address", () => {
+  const device = makeDevice({ address: 0 });
+  device.sensors.push({ table: "input", address: 0, value: 5, scale: 10 });
+  const result = server._readRegister(device, "input", 0);
+  assert.strictEqual(result, 50); // sensor: 5 * 10 = 50, not 12000
+});
+
+test("readRegister: FC03 holding at 0x1000 returns channel mode", () => {
+  const device = makeDevice({ address: 0, mode: 3 });
+  const result = server._readRegister(device, "holding", 0x1000);
+  assert.strictEqual(result, 3);
+});
+
+test("readRegister: FC03 holding at 0x1001 returns 0 if no channel at address 1", () => {
+  const device = makeDevice({ address: 0 }); // only channel 0
+  const result = server._readRegister(device, "holding", 0x1001);
+  assert.strictEqual(result, 0);
+});
+
+test("readRegister: FC03 holding at 0x1007 returns mode for channel at address 7", () => {
+  const device = {
+    sensors: [],
+    points: [],
+    analogChannels: [{ address: 7, mode: 2, loReal: 0, hiReal: 20, value: 10 }]
+  };
+  const result = server._readRegister(device, "holding", 0x1007);
+  assert.strictEqual(result, 2);
+});
+
+test("readRegister: device with no analogChannels field returns 0 for analog address", () => {
+  const device = { sensors: [], points: [] };
+  const result = server._readRegister(device, "input", 0);
+  assert.strictEqual(result, 0);
+});
