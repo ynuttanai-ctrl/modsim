@@ -376,7 +376,7 @@ function computeAnalogDisplay(channel) {
     case 2: raw = Math.min(20000, Math.max(0, Math.round(ratio * 20000))); break;
     case 0: raw = Math.min(5000, Math.max(0, Math.round(ratio * 5000))); break;
     case 1: raw = Math.min(5000, Math.max(1000, Math.round(1000 + ratio * 4000))); break;
-    case 4: raw = Math.min(4096, Math.max(0, Math.round(ratio * 4096))); break;
+    case 4: raw = Math.min(4095, Math.max(0, Math.round(ratio * 4095))); break;
     default: raw = 0;
   }
   const unit = MODE_UNITS[mode] ?? "";

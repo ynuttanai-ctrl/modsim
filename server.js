@@ -213,7 +213,7 @@ function computeAnalogRegister(channel) {
     case 2: return Math.min(20000, Math.max(0, Math.round(ratio * 20000)));
     case 0: return Math.min(5000, Math.max(0, Math.round(ratio * 5000)));
     case 1: return Math.min(5000, Math.max(1000, Math.round(1000 + ratio * 4000)));
-    case 4: return Math.min(4096, Math.max(0, Math.round(ratio * 4096)));
+    case 4: return Math.min(4095, Math.max(0, Math.round(ratio * 4095)));
     default: return 0;
   }
 }
@@ -559,7 +559,7 @@ function writeRegister(device, address, rawValue) {
     const channelAddress = address - 0x1000;
     const channel = device.analogChannels?.find((ch) => ch.address === channelAddress);
     if (channel) {
-      if (rawValue < 0 || rawValue > 4) return 0x03;
+      if (rawValue > 4) return 0x03;
       channel.mode = rawValue;
     }
     return;
