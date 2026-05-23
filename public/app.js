@@ -554,7 +554,8 @@ document.addEventListener("click", async (event) => {
     if (!device.analogChannels) device.analogChannels = [];
     const usedAddresses = new Set(device.analogChannels.map((ch) => ch.address));
     let address = 0;
-    while (usedAddresses.has(address) && address < 7) address += 1;
+    while (usedAddresses.has(address) && address <= 7) address += 1;
+    if (address > 7) return; // all 8 channel slots (0–7) used
     device.analogChannels.push({
       id: uid("analog"),
       name: `CH${address + 1}`,
