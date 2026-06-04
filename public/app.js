@@ -68,6 +68,7 @@ async function refreshStatus() {
     renderSummary();
     renderEndpointList();
     renderLogs();
+    updateLiveCells();
   } catch (error) {
     summary.textContent = error.message;
   }
@@ -101,11 +102,56 @@ function render() {
   const device = selectedDevice();
   if (device && device.id !== state.selectedDeviceId) state.selectedDeviceId = device.id;
 
+  state.config.randomizer ||= { enabled: false, intervalSeconds: 5 };
+
   renderSummary();
+  renderRandomizer();
   renderEndpointList();
   renderGateway();
   renderDevice();
   renderLogs();
+  updateLiveCells();
+}
+
+function renderRandomizer() {
+  const rand = state.config.randomizer || { enabled: false, intervalSeconds: 5 };
+  const enabled = $("#rand-enabled");
+  const interval = $("#rand-interval");
+  if (enabled) enabled.checked = Boolean(rand.enabled);
+  if (interval && document.activeElement !== interval) interval.value = rand.intervalSeconds;
+}
+
+function updateLiveCells() {
+  const live = state.status.live || {};
+  const device = selectedDevice();
+  if (!device) return;
+
+  document.querySelectorAll("[data-live-sensor]").forEach((cell) => {
+    const sensor = device.sensors.find((entry) => entry.id === cell.dataset.liveSensor);
+    if (!sensor) return;
+    const on = sensor.id in live;
+    const eng = on ? live[sensor.id] : sensor.value;
+    cell.textContent = Math.round(Number(eng || 0) * Number(sensor.scale || 1));
+    cell.classList.toggle("live-on", on);
+  });
+
+  document.querySelectorAll("[data-live-analog]").forEach((cell) => {
+    const ch = (device.analogChannels || []).find((entry) => entry.id === cell.dataset.liveAnalog);
+    if (!ch) return;
+    const on = ch.id in live;
+    const eng = on ? live[ch.id] : ch.value;
+    cell.textContent = computeAnalogDisplay({ ...ch, value: eng });
+    cell.classList.toggle("live-on", on);
+  });
+
+  document.querySelectorAll("[data-live-point]").forEach((cell) => {
+    const point = device.points.find((entry) => entry.id === cell.dataset.livePoint);
+    if (!point) return;
+    const on = point.id in live;
+    const value = on ? live[point.id] : point.value;
+    cell.textContent = typeof value === "boolean" ? String(value) : Math.round(Number(value || 0));
+    cell.classList.toggle("live-on", on);
+  });
 }
 
 function renderSummary() {
@@ -251,7 +297,9 @@ function renderSensors(device) {
       <td><input type="number" step="0.001" data-field="sensor.value" value="${sensor.value}"></td>
       <td><input type="number" step="0.001" data-field="sensor.scale" value="${sensor.scale}"></td>
       <td><input data-field="sensor.unit" value="${escapeHtml(sensor.unit)}"></td>
-      <td class="muted">${Math.round(Number(sensor.value || 0) * Number(sensor.scale || 1))}</td>
+      <td><input type="number" step="0.001" data-field="sensor.randMin" value="${sensor.randMin ?? sensor.value}"></td>
+      <td><input type="number" step="0.001" data-field="sensor.randMax" value="${sensor.randMax ?? sensor.value}"></td>
+      <td class="muted" data-live-sensor="${escapeHtml(sensor.id)}">${Math.round(Number(sensor.value || 0) * Number(sensor.scale || 1))}</td>
       <td><button class="icon danger" title="Delete" type="button" data-action="remove-sensor" data-id="${escapeHtml(sensor.id)}">x</button></td>
     </tr>
   `).join("");
@@ -271,7 +319,9 @@ function renderSensors(device) {
             <th>Value</th>
             <th>Scale</th>
             <th>Unit</th>
-            <th>Raw</th>
+            <th>Rnd Min</th>
+            <th>Rnd Max</th>
+            <th>Live Raw</th>
             <th></th>
           </tr>
         </thead>
@@ -288,6 +338,9 @@ function renderPoints(device) {
       <td>${tableSelect("point.table", point.table, ["holding", "input", "coils", "discrete"])}</td>
       <td><input type="number" min="0" max="65535" data-field="point.address" value="${point.address}"></td>
       <td>${BOOL_TABLES.has(point.table) ? boolSelect("point.value", point.value) : `<input type="number" min="0" max="65535" data-field="point.value" value="${point.value}">`}</td>
+      <td>${BOOL_TABLES.has(point.table) ? `<span class="muted">—</span>` : `<input type="number" min="0" max="65535" data-field="point.randMin" value="${point.randMin ?? point.value}">`}</td>
+      <td>${BOOL_TABLES.has(point.table) ? `<span class="muted">—</span>` : `<input type="number" min="0" max="65535" data-field="point.randMax" value="${point.randMax ?? point.value}">`}</td>
+      <td class="muted" data-live-point="${escapeHtml(point.id)}">${BOOL_TABLES.has(point.table) ? String(point.value) : point.value}</td>
       <td><button class="icon danger" title="Delete" type="button" data-action="remove-point" data-id="${escapeHtml(point.id)}">x</button></td>
     </tr>
   `).join("");
@@ -305,6 +358,9 @@ function renderPoints(device) {
             <th>Table</th>
             <th>Address</th>
             <th>Value</th>
+            <th>Rnd Min</th>
+            <th>Rnd Max</th>
+            <th>Live</th>
             <th></th>
           </tr>
         </thead>
@@ -329,7 +385,7 @@ function renderAnalogChannels(device) {
       <td><input type="number" step="any" data-field="analog.hiReal" value="${ch.hiReal}"></td>
       <td><input type="number" step="any" data-field="analog.value" value="${ch.value}"></td>
       <td><input data-field="analog.unit" value="${escapeHtml(ch.unit)}"></td>
-      <td class="muted">${computeAnalogDisplay(ch)}</td>
+      <td class="muted" data-live-analog="${escapeHtml(ch.id)}">${computeAnalogDisplay(ch)}</td>
       <td><button class="icon danger" title="Delete" type="button" data-action="remove-analog" data-id="${escapeHtml(ch.id)}">x</button></td>
     </tr>
   `).join("");
@@ -339,7 +395,7 @@ function renderAnalogChannels(device) {
       <h3>Analog Channels</h3>
       <button type="button" data-action="add-analog">+ Analog Channel</button>
     </div>
-    <p class="muted">Input data: FC04 input 0x0000–0x0007 &nbsp;|&nbsp; Mode config: FC03/06 holding 0x1000–0x1007</p>
+    <p class="muted">Input data: FC04 input 0x0000–0x0007 &nbsp;|&nbsp; Mode config: FC03/06 holding 0x1000–0x1007 &nbsp;|&nbsp; Randomizer sweeps each channel between Lo and Hi Value</p>
     <div class="table-wrap">
       <table>
         <thead>
@@ -424,7 +480,12 @@ function currentFieldTarget(element) {
   const endpoint = selectedEndpoint();
   const field = element.dataset.field;
 
-  if (!field || !endpoint) return null;
+  if (!field) return null;
+  if (field.startsWith("randomizer.")) {
+    state.config.randomizer ||= { enabled: false, intervalSeconds: 5 };
+    return { object: state.config.randomizer, property: field.split(".")[1] };
+  }
+  if (!endpoint) return null;
   if (field.startsWith("endpoint.")) return { object: endpoint, property: field.split(".")[1] };
   if (field.startsWith("device.") && device) return { object: device, property: field.split(".")[1] };
 
@@ -456,9 +517,9 @@ function setField(element) {
   const { object, property } = target;
   if (element.type === "checkbox") {
     object[property] = element.checked;
-  } else if (["port", "unitId", "address", "mode"].includes(property)) {
+  } else if (["port", "unitId", "address", "mode", "intervalSeconds"].includes(property)) {
     object[property] = Number.parseInt(element.value, 10) || 0;
-  } else if (["value", "scale", "loReal", "hiReal"].includes(property) && element.tagName !== "SELECT") {
+  } else if (["value", "scale", "loReal", "hiReal", "randMin", "randMax"].includes(property) && element.tagName !== "SELECT") {
     object[property] = Number(element.value) || 0;
   } else if (property === "value" && element.tagName === "SELECT") {
     object[property] = element.value === "true";
@@ -537,6 +598,8 @@ document.addEventListener("click", async (event) => {
       address: nextAddress(device.sensors, "holding"),
       scale: 100,
       value: 0,
+      randMin: 0,
+      randMax: 0,
       unit: "A"
     });
     state.tab = "sensors";
@@ -583,7 +646,9 @@ document.addEventListener("click", async (event) => {
       name: "Holding",
       table: "holding",
       address: nextAddress(device.points, "holding"),
-      value: 0
+      value: 0,
+      randMin: 0,
+      randMax: 0
     });
     state.tab = "points";
     markDirty();

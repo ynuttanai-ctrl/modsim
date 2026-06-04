@@ -21,6 +21,8 @@ let httpServer = null;
 
 const runtime = {
   endpoints: new Map(),
+  live: new Map(),
+  randomTimer: null,
   logs: []
 };
 
@@ -132,7 +134,15 @@ function loadConfig() {
 function sanitizeConfig(raw) {
   const endpoints = Array.isArray(raw?.endpoints) ? raw.endpoints : [];
   return {
+    randomizer: sanitizeRandomizer(raw?.randomizer),
     endpoints: endpoints.map(sanitizeEndpoint)
+  };
+}
+
+function sanitizeRandomizer(raw) {
+  return {
+    enabled: Boolean(raw?.enabled),
+    intervalSeconds: clampInt(raw?.intervalSeconds, 5, 1, 3600)
   };
 }
 
@@ -165,13 +175,16 @@ function sanitizeDevice(device) {
 
 function sanitizeSensor(sensor) {
   const table = REGISTER_TABLES.has(sensor?.table) ? sensor.table : "holding";
+  const value = finiteNumber(sensor?.value, 0);
   return {
     id: cleanText(sensor?.id, uid("sensor"), 80),
     name: cleanText(sensor?.name, "Sensor", 80),
     table,
     address: clampInt(sensor?.address, 0, 0, 65535),
     scale: finiteNumber(sensor?.scale, 1),
-    value: finiteNumber(sensor?.value, 0),
+    value,
+    randMin: finiteNumber(sensor?.randMin, value),
+    randMax: finiteNumber(sensor?.randMax, value),
     unit: cleanText(sensor?.unit, "", 20)
   };
 }
@@ -181,13 +194,18 @@ function sanitizePoint(point) {
   const value = BOOL_TABLES.has(table)
     ? Boolean(point?.value)
     : clampInt(point?.value, 0, 0, 65535);
-  return {
+  const sanitized = {
     id: cleanText(point?.id, uid("point"), 80),
     name: cleanText(point?.name, "Point", 80),
     table,
     address: clampInt(point?.address, 0, 0, 65535),
     value
   };
+  if (!BOOL_TABLES.has(table)) {
+    sanitized.randMin = clampInt(point?.randMin, value, 0, 65535);
+    sanitized.randMax = clampInt(point?.randMax, value, 0, 65535);
+  }
+  return sanitized;
 }
 
 function sanitizeAnalogChannel(ch) {
@@ -216,6 +234,54 @@ function computeAnalogRegister(channel) {
     case 4: return Math.min(4095, Math.max(0, Math.round(ratio * 4095)));
     default: return 0;
   }
+}
+
+function randomInRange(min, max) {
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  return lo + Math.random() * (hi - lo);
+}
+
+function randomizeTick() {
+  runtime.live.clear();
+  for (const endpoint of config.endpoints) {
+    if (!endpoint.enabled) continue;
+    for (const device of endpoint.devices) {
+      if (!device.enabled) continue;
+      for (const sensor of device.sensors) {
+        runtime.live.set(sensor.id, randomInRange(sensor.randMin, sensor.randMax));
+      }
+      for (const channel of device.analogChannels || []) {
+        runtime.live.set(channel.id, randomInRange(channel.loReal, channel.hiReal));
+      }
+      for (const point of device.points) {
+        if (BOOL_TABLES.has(point.table)) {
+          runtime.live.set(point.id, Math.random() < 0.5);
+        } else {
+          runtime.live.set(point.id, Math.round(randomInRange(point.randMin, point.randMax)));
+        }
+      }
+    }
+  }
+}
+
+function reconcileRandomizer() {
+  if (runtime.randomTimer) {
+    clearInterval(runtime.randomTimer);
+    runtime.randomTimer = null;
+  }
+  runtime.live.clear();
+
+  if (!config.randomizer?.enabled) return;
+
+  randomizeTick();
+  runtime.randomTimer = setInterval(randomizeTick, config.randomizer.intervalSeconds * 1000);
+  runtime.randomTimer.unref?.();
+  log("info", `Randomizer on: new values every ${config.randomizer.intervalSeconds}s`);
+}
+
+function liveValue(id, fallback) {
+  return runtime.live.has(id) ? runtime.live.get(id) : fallback;
 }
 
 function cleanText(value, fallback, maxLength) {
@@ -535,11 +601,14 @@ function handleWriteMultipleCoils(transactionId, unitId, functionCode, device, p
 
 function readRegister(device, table, address) {
   const sensor = device.sensors.find((entry) => entry.table === table && entry.address === address);
-  if (sensor) return toUInt16(Math.round(sensor.value * sensor.scale));
+  if (sensor) return toUInt16(Math.round(liveValue(sensor.id, sensor.value) * sensor.scale));
 
   if (table === "input") {
     const channel = device.analogChannels?.find((ch) => ch.address === address);
-    if (channel) return computeAnalogRegister(channel);
+    if (channel) {
+      const value = liveValue(channel.id, channel.value);
+      return computeAnalogRegister(value === channel.value ? channel : { ...channel, value });
+    }
   }
 
   if (table === "holding" && address >= 0x1000 && address <= 0x1007) {
@@ -549,7 +618,7 @@ function readRegister(device, table, address) {
   }
 
   const point = device.points.find((entry) => entry.table === table && entry.address === address);
-  if (point) return toUInt16(point.value);
+  if (point) return toUInt16(liveValue(point.id, point.value));
 
   return 0;
 }
@@ -589,7 +658,8 @@ function writeRegister(device, address, rawValue) {
 
 function readBit(device, table, address) {
   const point = device.points.find((entry) => entry.table === table && entry.address === address);
-  return Boolean(point?.value);
+  if (!point) return false;
+  return Boolean(liveValue(point.id, point.value));
 }
 
 function writeBit(device, address, value) {
@@ -657,7 +727,8 @@ function createHttpServer() {
       if (url.pathname === "/api/status" && request.method === "GET") {
         return sendJson(response, 200, {
           endpoints: endpointStatus(),
-          logs: runtime.logs
+          logs: runtime.logs,
+          live: Object.fromEntries(runtime.live)
         });
       }
 
@@ -666,6 +737,7 @@ function createHttpServer() {
         config = sanitizeConfig(JSON.parse(body || "{}"));
         saveConfigNow();
         reconcileServers();
+        reconcileRandomizer();
         return sendJson(response, 200, {
           ok: true,
           config,
@@ -677,6 +749,7 @@ function createHttpServer() {
         config = sanitizeConfig(defaultConfig());
         saveConfigNow();
         reconcileServers();
+        reconcileRandomizer();
         return sendJson(response, 200, {
           ok: true,
           config,
@@ -760,6 +833,12 @@ async function stopApp({ exit = false } = {}) {
     console.error(error.message);
   }
 
+  if (runtime.randomTimer) {
+    clearInterval(runtime.randomTimer);
+    runtime.randomTimer = null;
+  }
+  runtime.live.clear();
+
   for (const endpointId of Array.from(runtime.endpoints.keys())) {
     stopEndpoint(endpointId);
   }
@@ -787,6 +866,7 @@ function shutdown() {
 
 function startApp(options = {}) {
   reconcileServers();
+  reconcileRandomizer();
   return startHttpServer({
     port: options.httpPort ?? DEFAULT_HTTP_PORT,
     host: options.httpHost ?? DEFAULT_HTTP_HOST,
@@ -835,7 +915,13 @@ module.exports = {
   startApp,
   stopApp,
   _sanitizeAnalogChannel: sanitizeAnalogChannel,
+  _sanitizeConfig: sanitizeConfig,
+  _sanitizeRandomizer: sanitizeRandomizer,
+  _sanitizeSensor: sanitizeSensor,
+  _sanitizePoint: sanitizePoint,
   _computeAnalogRegister: computeAnalogRegister,
+  _randomInRange: randomInRange,
   _readRegister: readRegister,
-  _writeRegister: writeRegister
+  _writeRegister: writeRegister,
+  _runtime: runtime
 };

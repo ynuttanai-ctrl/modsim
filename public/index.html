@@ -14,6 +14,12 @@
           <p id="summary">Loading</p>
         </div>
         <div class="actions">
+          <label class="rand-control" title="Randomize values on the server. Press Apply to start.">
+            <input type="checkbox" data-field="randomizer.enabled" id="rand-enabled">
+            Randomize every
+            <input type="number" min="1" max="3600" data-field="randomizer.intervalSeconds" id="rand-interval" class="rand-interval">
+            s
+          </label>
           <button id="add-endpoint" type="button">+ Gateway</button>
           <button id="save" type="button" class="primary">Apply</button>
         </div>

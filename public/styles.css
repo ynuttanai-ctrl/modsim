@@ -339,6 +339,24 @@ tr:last-child td {
   color: var(--muted);
 }
 
+.rand-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rand-interval {
+  width: 56px;
+}
+
+.live-on {
+  color: #16a34a;
+  font-weight: 600;
+}
+
 .error-text {
   color: var(--danger);
 }

@@ -1,4 +1,8 @@
 {
+  "randomizer": {
+    "enabled": false,
+    "intervalSeconds": 5
+  },
   "endpoints": [
     {
       "id": "endpoint-mpdkb9fb-b8zwks",
@@ -20,6 +24,8 @@
               "address": 0,
               "scale": 100,
               "value": 41.58,
+              "randMin": 41.58,
+              "randMax": 41.58,
               "unit": "A"
             },
             {
@@ -29,6 +35,8 @@
               "address": 1,
               "scale": 100,
               "value": 11.98,
+              "randMin": 11.98,
+              "randMax": 11.98,
               "unit": "A"
             },
             {
@@ -38,6 +46,8 @@
               "address": 2,
               "scale": 100,
               "value": 12.12,
+              "randMin": 12.12,
+              "randMax": 12.12,
               "unit": "A"
             }
           ],
@@ -103,6 +113,8 @@
               "address": 0,
               "scale": 100,
               "value": 7.5,
+              "randMin": 7.5,
+              "randMax": 7.5,
               "unit": "A"
             }
           ],
